@@ -1,0 +1,6 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_home" android:title="@string/tab_home" android:icon="@android:drawable/ic_menu_view"/>
+    <item android:id="@+id/nav_pantry" android:title="@string/tab_pantry" android:icon="@android:drawable/ic_menu_agenda"/>
+    <item android:id="@+id/nav_recipes" android:title="@string/tab_recipes" android:icon="@android:drawable/ic_menu_search"/>
+    <item android:id="@+id/nav_sensors" android:title="@string/tab_sensors" android:icon="@android:drawable/ic_menu_manage"/>
+</menu>

@@ -1,0 +1,13 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.6.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.0")
+    }
+}
+plugins {
+    id("com.android.application") version "8.6.0" apply false
+}

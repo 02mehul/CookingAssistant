@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Cooking Assistant Pro</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_pantry">Pantry</string>
+    <string name="tab_recipes">Recipes</string>
+    <string name="tab_sensors">Sensors</string>
+    <string name="add_item">Add Item</string>
+    <string name="save">Save</string>
+    <string name="search">Search</string>
+</resources>
