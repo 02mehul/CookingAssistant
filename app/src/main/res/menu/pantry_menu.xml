@@ -12,4 +12,19 @@
         android:id="@+id/action_clear_all"
         android:title="Clear all"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_open_shopping"
+        android:title="Shopping List"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_export_csv"
+        android:title="Export Pantry (CSV)"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_import_csv"
+        android:title="Import Pantry (CSV)"
+        app:showAsAction="never"/>
 </menu>

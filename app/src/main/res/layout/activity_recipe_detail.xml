@@ -7,6 +7,7 @@
 
     <!-- Collapsing header with recipe image -->
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
@@ -79,6 +80,23 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"/>
 
+            <!-- Actions (inside scroll content) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddToShopping"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Add missing to Shopping List"
+                android:layout_marginTop="12dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddAllToPantry"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Add all ingredients to Pantry"
+                android:layout_marginTop="8dp"/>
+
             <!-- Steps -->
             <TextView
                 android:id="@+id/txtStepHeader"
@@ -126,7 +144,9 @@
                     android:layout_weight="1"
                     android:text="Prev"/>
 
-                <Space android:layout_width="12dp" android:layout_height="1dp"/>
+                <Space
+                    android:layout_width="12dp"
+                    android:layout_height="1dp"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNext"
@@ -147,7 +167,7 @@
         app:srcCompat="@android:drawable/ic_media_play"
         app:tint="?attr/colorOnPrimary"
         app:backgroundTint="?attr/colorPrimary"
-        app:layout_anchor="@id/collapsing"
+        app:layout_anchor="@id/appbar"
         app:layout_anchorGravity="bottom|end"
         android:contentDescription="Open YouTube"/>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

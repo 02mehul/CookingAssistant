@@ -30,12 +30,16 @@ import com.google.android.material.snackbar.Snackbar;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
+import com.example.cookingassistant.db.*;
 
 public class RecipeDetailActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -117,7 +121,10 @@ public class RecipeDetailActivity extends AppCompatActivity implements SensorEve
                 }
                 Meal m = body.meals.get(0);
 
-                // Title + image (via reflective getter to avoid compile issues)
+                findViewById(R.id.btnAddToShopping).setOnClickListener(v -> addMissingToShopping(m));
+                findViewById(R.id.btnAddAllToPantry).setOnClickListener(v -> addAllToPantry(m));
+
+                // Title + image
                 String title = getField(m, "strMeal");
                 String thumb = getField(m, "strMealThumb");
                 txtTitle.setText(title != null ? title : "Recipe");
@@ -125,7 +132,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements SensorEve
                     Glide.with(RecipeDetailActivity.this).load(thumb).into(imgHeader);
                 }
 
-                // Meta chips (Category / Area / Tags) — all via getField
+                // Meta chips
                 chipMeta.removeAllViews();
                 addChip(getField(m, "strCategory"));
                 addChip(getField(m, "strArea"));
@@ -162,6 +169,120 @@ public class RecipeDetailActivity extends AppCompatActivity implements SensorEve
         chipMeta.addView(c);
     }
 
+    /** Add every ingredient to pantry (create if new, increment if exists). */
+    private void addAllToPantry(Meal m) {
+        if (m == null) return;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int added = 0, updated = 0;
+            try {
+                ItemDao itemDao = AppDatabase.getInstance(getApplicationContext()).itemDao();
+                HashSet<String> seen = new HashSet<>();
+
+                for (int i = 1; i <= 20; i++) {
+                    String ing = ing(m, i);   // normalized strIngredientX
+                    if (ing == null) continue;
+                    String key = ing.toLowerCase(Locale.US);
+                    if (!seen.add(key)) continue; // de-dup within list
+
+                    Item existing = itemDao.findByName(ing);
+                    if (existing == null) {
+                        itemDao.insert(new Item(ing, 1));
+                        added++;
+                    } else {
+                        existing.quantity = Math.max(1, existing.quantity + 1);
+                        itemDao.update(existing);
+                        updated++;
+                    }
+                }
+
+                final int A = added, U = updated;
+                runOnUiThread(() -> Snackbar
+                        .make(findViewById(android.R.id.content),
+                                "Pantry updated • added " + A + ", incremented " + U,
+                                Snackbar.LENGTH_LONG)
+                        .setAction("Open Pantry", v -> openPantryTab())
+                        .show());
+
+            } catch (Exception e) {
+                final String msg = e.getClass().getSimpleName() +
+                        (e.getMessage() != null ? (": " + e.getMessage()) : "");
+                runOnUiThread(() -> Snackbar
+                        .make(findViewById(android.R.id.content),
+                                "Failed to add ingredients: " + msg,
+                                Snackbar.LENGTH_LONG)
+                        .show());
+            }
+        });
+    }
+
+    /** Open the main screen and switch to the Pantry tab. */
+    private void openPantryTab() {
+        Intent i = new Intent(this, MainActivity.class);
+        i.putExtra("open_tab", "pantry");
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(i);
+    }
+
+    private void addMissingToShopping(Meal m) {
+        if (m == null) return;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            AppDatabase db = AppDatabase.getInstance(this);
+            ItemDao itemDao = db.itemDao();
+            ShoppingItemDao sdao = db.shoppingItemDao();
+
+            List<Item> pantry = itemDao.getAllSync();
+            HashSet<String> have = new HashSet<>();
+            if (pantry != null) {
+                for (Item it : pantry) {
+                    if (it.name != null) have.add(it.name.trim().toLowerCase());
+                }
+            }
+
+            ArrayList<ShoppingItem> toInsert = new ArrayList<>();
+            for (int i = 1; i <= 20; i++) {
+                String ing = ing(m, i);
+                String meas = mea(m, i);
+                if (ing == null) continue;
+
+                if (!have.contains(ing.toLowerCase())) {
+                    ShoppingItem existing = sdao.findByName(ing);
+                    if (existing == null) {
+                        ShoppingItem si = new ShoppingItem();
+                        si.name = ing;
+                        si.measure = (meas == null ? "" : meas);
+                        si.quantity = 1;
+                        si.checked = false;
+                        toInsert.add(si);
+                    } else {
+                        existing.quantity = Math.max(1, existing.quantity);
+                        sdao.update(existing);
+                    }
+                }
+            }
+
+            if (!toInsert.isEmpty()) sdao.insertAll(toInsert);
+
+            runOnUiThread(() -> Snackbar
+                    .make(findViewById(android.R.id.content),
+                            "Added " + toInsert.size() + " missing item(s)",
+                            Snackbar.LENGTH_LONG)
+                    .setAction("Open", v -> startActivity(new Intent(this, ShoppingListActivity.class)))
+                    .show());
+        });
+    }
+
+    // --- helpers ---
+    private @Nullable String ing(Meal m, int i) { return normalize(getField(m, "strIngredient" + i)); }
+    private @Nullable String mea(Meal m, int i) { return normalize(getField(m, "strMeasure" + i)); }
+    private @Nullable String normalize(String s) {
+        if (s == null) return null;
+        s = s.trim();
+        if (s.isEmpty() || s.equalsIgnoreCase("null")) return null;
+        return s;
+    }
+
     private List<String> parseSteps(String instr) {
         if (instr == null) return Arrays.asList("No instructions available.");
         List<String> out = new ArrayList<>();
@@ -179,7 +300,6 @@ public class RecipeDetailActivity extends AppCompatActivity implements SensorEve
 
     private void populateIngredients(Meal m) {
         ingredientsContainer.removeAllViews();
-        // TheMealDB has strIngredient1..20 and strMeasure1..20
         for (int i = 1; i <= 20; i++) {
             String ing = getField(m, "strIngredient" + i);
             String mea = getField(m, "strMeasure" + i);

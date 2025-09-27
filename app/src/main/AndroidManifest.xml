@@ -2,37 +2,43 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.cookingassistant">
 
-    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.light" android:required="false" />
-
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-feature android:name="android.hardware.sensor.proximity" android:required="false"/>
+
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false"/>
+    <uses-feature android:name="android.hardware.sensor.proximity" android:required="false"/>
+    <uses-feature android:name="android.hardware.sensor.light" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+
+
     <application
         android:allowBackup="true"
-        android:label="Cooking Assistant"
         android:icon="@android:drawable/sym_def_app_icon"
+        android:label="Cooking Assistant"
         android:supportsRtl="true"
         android:theme="@style/Theme.CAPro">
 
-        <!-- Main with BottomNav -->
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- Extra activities to satisfy assignment and add depth -->
         <activity android:name=".ui.ItemEditActivity" />
         <activity android:name=".ui.RecipeDetailActivity" />
         <activity android:name=".ui.SensorsActivity" />
         <activity android:name=".ui.mood.MoodCaptureActivity"/>
         <activity android:name=".ui.mood.IngredientInputActivity" android:windowSoftInputMode="adjustResize"/>
         <activity android:name=".ui.mood.MoodMatchActivity"/>
+        <activity android:name=".ui.ShoppingListActivity"/>
     </application>
+
 </manifest>

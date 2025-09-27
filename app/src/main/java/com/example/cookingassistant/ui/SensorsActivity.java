@@ -1,213 +1,395 @@
 package com.example.cookingassistant.ui;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Build;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
-import android.os.VibrationEffect;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Vibrator;
-import android.view.WindowManager;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.cookingassistant.R;
-import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.snackbar.Snackbar;
+import com.example.cookingassistant.databinding.ActivitySensorsBinding;
+import com.google.android.material.card.MaterialCardView;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 public class SensorsActivity extends AppCompatActivity implements SensorEventListener {
 
-    private SensorManager sm;
-    private Sensor light, prox, accel;
+    private ActivitySensorsBinding binding;
+    private Vibrator vibrator;
 
-    private TextView txtLight, txtProx, txtWaves, txtShake, txtTimer, txtOrientation;
-    private MaterialSwitch switchHaptics;
+    // --- Shake Timer & Accelerometer Variables ---
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private long lastUpdate = 0;
+    private float last_x, last_y, last_z;
+    private static final int SHAKE_THRESHOLD = 800;
+    private int shakeCount = 0;
+    private CountDownTimer shakeCountDownTimer;
+    private boolean isShakeTimerRunning = false;
+    private long shakeTimerInitialTimeInMillis = 0;
+    private long shakeTimerTimeLeftInMillis = 0;
 
-    private int waves = 0, shakes = 0;
-    private long lastShakeMs = 0, lastWaveMs = 0;
+    // --- Proximity Sensor & Alarm Variables ---
+    private Sensor proximitySensor;
+    private boolean isAlarmActive = false;
+    private Ringtone activeRingtone;
 
-    // Low-pass gravity for accel
-    private static final float ALPHA = 0.9f;
-    private float[] gravity = new float[]{0,0,0};
+    // --- Camera & Flashlight Variables ---
+    private CameraManager cameraManager;
+    private String cameraId;
+    private Handler flashlightHandler;
+    private Runnable flashlightRunnable;
+    private boolean isFlashing = false;
 
-    // Timer (30s). Shake toggles start/pause.
-    private CountDownTimer timer;
-    private long remainingMs = 30_000;
-    private boolean timerRunning = false;
+    // --- New Permission Launcher ---
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (!isGranted) {
+                    Toast.makeText(this, "Permission denied. Flashlight will not be available.", Toast.LENGTH_LONG).show();
+                }
+            });
+
+    // --- Multiple Named Timers Variables ---
+    private final Map<View, CountDownTimer> activeTimers = new HashMap<>();
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_sensors);
+        binding = ActivitySensorsBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        setupSensors();
+        setupFlashlight();
+        setupUIListeners();
 
-        sm = (SensorManager) getSystemService(SENSOR_SERVICE);
-        light = sm.getDefaultSensor(Sensor.TYPE_LIGHT);
-        prox  = sm.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-        accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-
-        txtLight = findViewById(R.id.txtLight);
-        txtProx  = findViewById(R.id.txtProx);
-        txtWaves = findViewById(R.id.txtWaves);
-        txtShake = findViewById(R.id.txtShake);
-        txtTimer = findViewById(R.id.txtTimer);
-        txtOrientation = findViewById(R.id.txtOrientation);
-        switchHaptics = findViewById(R.id.switchHaptics);
-
-        findViewById(R.id.btnClose).setOnClickListener(v -> finish());
-
-        // If any sensor missing, show it
-        if (light == null) txtLight.setText("Light sensor not available");
-        if (prox  == null) txtProx.setText("Proximity sensor not available");
-        if (accel == null) txtShake.setText("Accelerometer not available");
-
-        updateTimerLabel();
+        // Check for camera permission when the screen opens
+        checkAndRequestCameraPermission();
     }
+
+    // --- New method to check and request camera permission ---
+    private void checkAndRequestCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void setupSensors() {
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+        }
+    }
+
+    private void setupFlashlight() {
+        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            if (cameraManager != null) {
+                cameraId = cameraManager.getCameraIdList()[0];
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+        flashlightHandler = new Handler(Looper.getMainLooper());
+    }
+
+    private void setupUIListeners() {
+        binding.kitchenToolbar.setNavigationOnClickListener(v -> finish());
+        binding.btnSetShakeTimer.setOnClickListener(v -> setShakeTimer());
+        binding.btnAddTimer.setOnClickListener(v -> addNamedTimer());
+    }
+
+    // =================================================================================
+    // Shake Timer Logic
+    // =================================================================================
+
+    private void setShakeTimer() {
+        String minutesStr = Objects.requireNonNull(binding.editShakeTimerMinutes.getText()).toString();
+        String secondsStr = Objects.requireNonNull(binding.editShakeTimerSeconds.getText()).toString();
+        int minutes = minutesStr.isEmpty() ? 0 : Integer.parseInt(minutesStr);
+        int seconds = secondsStr.isEmpty() ? 0 : Integer.parseInt(secondsStr);
+
+        if (isShakeTimerRunning) {
+            pauseShakeTimer();
+        }
+        shakeTimerInitialTimeInMillis = (minutes * 60L + seconds) * 1000L;
+        resetShakeTimer();
+        Toast.makeText(this, "Quick Timer set. Shake to start!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void handleShakeAction() {
+        vibrate(50);
+        shakeCount++;
+        binding.txtShake.setText(String.format(Locale.getDefault(), "Shakes: %d", shakeCount));
+
+        if (isShakeTimerRunning) {
+            pauseShakeTimer();
+        } else {
+            if (shakeTimerTimeLeftInMillis > 1000) {
+                startShakeTimer();
+            } else if (shakeTimerInitialTimeInMillis > 0) {
+                resetShakeTimer();
+                binding.txtShakeTimerStatus.setText("Timer reset. Shake to start.");
+            }
+        }
+    }
+
+    private void startShakeTimer() {
+        shakeCountDownTimer = new CountDownTimer(shakeTimerTimeLeftInMillis, 1000) {
+            @Override public void onTick(long millis) {
+                shakeTimerTimeLeftInMillis = millis;
+                updateShakeTimerText();
+            }
+            @Override public void onFinish() {
+                isShakeTimerRunning = false;
+                shakeTimerTimeLeftInMillis = 0;
+                updateShakeTimerText();
+                binding.txtShakeTimerStatus.setText("Finished! Shake to reset.");
+                vibrate(500);
+                playSound();
+            }
+        }.start();
+        isShakeTimerRunning = true;
+        binding.txtShakeTimerStatus.setText("Running...");
+    }
+
+    private void pauseShakeTimer() {
+        if (shakeCountDownTimer != null) shakeCountDownTimer.cancel();
+        isShakeTimerRunning = false;
+        binding.txtShakeTimerStatus.setText("Paused. Shake to resume.");
+    }
+
+    private void resetShakeTimer() {
+        if (shakeCountDownTimer != null) shakeCountDownTimer.cancel();
+        shakeTimerTimeLeftInMillis = shakeTimerInitialTimeInMillis;
+        isShakeTimerRunning = false;
+        updateShakeTimerText();
+        binding.txtShakeTimerStatus.setText("Ready. Shake to start.");
+    }
+
+    private void updateShakeTimerText() {
+        int minutes = (int) (shakeTimerTimeLeftInMillis / 1000) / 60;
+        int seconds = (int) (shakeTimerTimeLeftInMillis / 1000) % 60;
+        binding.txtShakeTimer.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds));
+    }
+
+
+    // =================================================================================
+    // Multiple Named Timers Logic
+    // =================================================================================
+
+    private void addNamedTimer() {
+        String name = Objects.requireNonNull(binding.editTimerName.getText()).toString().trim();
+        String minutesStr = Objects.requireNonNull(binding.editTimerMinutes.getText()).toString();
+        String secondsStr = Objects.requireNonNull(binding.editTimerSeconds.getText()).toString();
+
+        if (name.isEmpty()) {
+            Toast.makeText(this, "Please enter a name for the timer", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int minutes = minutesStr.isEmpty() ? 0 : Integer.parseInt(minutesStr);
+        int seconds = secondsStr.isEmpty() ? 0 : Integer.parseInt(secondsStr);
+        long totalMillis = (minutes * 60L + seconds) * 1000L;
+        if (totalMillis <= 0) {
+            Toast.makeText(this, "Please enter a valid duration", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View timerView = inflater.inflate(R.layout.row_timer, binding.timersContainer, false);
+
+        TextView txtTimerName = timerView.findViewById(R.id.txtTimerName);
+        TextView txtTimerCountdown = timerView.findViewById(R.id.txtTimerCountdown);
+        Button btnCancel = timerView.findViewById(R.id.btnCancelTimer);
+        MaterialCardView cardView = (MaterialCardView) timerView;
+        txtTimerName.setText(name);
+
+        CountDownTimer newTimer = new CountDownTimer(totalMillis, 1000) {
+            @Override public void onTick(long millis) {
+                txtTimerCountdown.setText(String.format(Locale.getDefault(), "%02d:%02d", (millis/1000)/60, (millis/1000)%60));
+            }
+            @Override public void onFinish() {
+                txtTimerCountdown.setText("00:00");
+                txtTimerName.setText(name + " - Finished!");
+                cardView.setCardBackgroundColor(Color.parseColor("#FFDDC6"));
+                vibrate(500);
+                playSound();
+                btnCancel.setText("Clear");
+            }
+        };
+        btnCancel.setOnClickListener(v -> {
+            silenceAlarm();
+            newTimer.cancel();
+            binding.timersContainer.removeView(timerView);
+            activeTimers.remove(timerView);
+        });
+
+        binding.timersContainer.addView(timerView);
+        activeTimers.put(timerView, newTimer);
+        newTimer.start();
+
+        binding.editTimerName.getText().clear();
+        binding.editTimerMinutes.getText().clear();
+        binding.editTimerSeconds.getText().clear();
+    }
+
+
+    // =================================================================================
+    // Alarm, Sound, and Flashlight Logic
+    // =================================================================================
+
+    private void playSound() {
+        try {
+            silenceAlarm(); // Stop any previous alarm
+            Uri notificationSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            activeRingtone = RingtoneManager.getRingtone(getApplicationContext(), notificationSound);
+            activeRingtone.play();
+            isAlarmActive = true;
+            startFlashing(); // Start the flashlight
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void silenceAlarm() {
+        if (isAlarmActive) {
+            if (activeRingtone != null) activeRingtone.stop();
+            isAlarmActive = false;
+            activeRingtone = null;
+            stopFlashing(); // Stop the flashlight
+            Toast.makeText(this, "Alarm silenced", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startFlashing() {
+        if (cameraId == null || ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            return; // Don't try to flash if we don't have permission or a camera
+        }
+        isFlashing = true;
+        flashlightRunnable = new Runnable() {
+            private boolean isOn = false;
+            @Override
+            public void run() {
+                try {
+                    cameraManager.setTorchMode(cameraId, isOn);
+                    isOn = !isOn;
+                    if (isFlashing) {
+                        flashlightHandler.postDelayed(this, 500); // Blink every 500ms
+                    }
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        flashlightHandler.post(flashlightRunnable);
+    }
+
+    private void stopFlashing() {
+        isFlashing = false;
+        if (flashlightRunnable != null) {
+            flashlightHandler.removeCallbacks(flashlightRunnable);
+        }
+        try {
+            if (cameraId != null) {
+                cameraManager.setTorchMode(cameraId, false); // Ensure flash is off
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    // =================================================================================
+    // General Lifecycle and Sensor Methods
+    // =================================================================================
+
+    private void vibrate(long duration) {
+        if (vibrator != null && vibrator.hasVibrator()) {
+            vibrator.vibrate(duration);
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            long curTime = System.currentTimeMillis();
+            if ((curTime - lastUpdate) > 100) {
+                long diffTime = (curTime - lastUpdate);
+                lastUpdate = curTime;
+                float x = event.values[0]; float y = event.values[1]; float z = event.values[2];
+                float speed = Math.abs(x + y + z - last_x - last_y - last_z) / diffTime * 10000;
+                if (speed > SHAKE_THRESHOLD) {
+                    handleShakeAction();
+                }
+                last_x = x; last_y = y; last_z = z;
+            }
+        }
+        else if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+            if (isAlarmActive && event.values[0] < proximitySensor.getMaximumRange()) {
+                silenceAlarm();
+            }
+        }
+    }
+    @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (light != null) sm.registerListener(this, light, SensorManager.SENSOR_DELAY_UI);
-        if (prox  != null) sm.registerListener(this, prox,  SensorManager.SENSOR_DELAY_UI);
-        if (accel != null) sm.registerListener(this, accel, SensorManager.SENSOR_DELAY_GAME);
+        if (sensorManager != null) {
+            if (accelerometer != null) {
+                sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
+            }
+            if (proximitySensor != null) {
+                sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+            }
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        sm.unregisterListener(this);
-        // keep timer state
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+        if (isShakeTimerRunning) {
+            pauseShakeTimer();
+        }
+        silenceAlarm();
     }
 
     @Override
-    public void onSensorChanged(SensorEvent e) {
-        if (e.sensor.getType() == Sensor.TYPE_LIGHT) {
-            handleLight(e.values[0]);
-        } else if (e.sensor.getType() == Sensor.TYPE_PROXIMITY) {
-            handleProximity(e.values[0], e.sensor.getMaximumRange());
-        } else if (e.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            handleAccel(e.values);
+    protected void onDestroy() {
+        super.onDestroy();
+        for (CountDownTimer timer : activeTimers.values()) {
+            if (timer != null) timer.cancel();
         }
+        activeTimers.clear();
+        if (shakeCountDownTimer != null) shakeCountDownTimer.cancel();
+        silenceAlarm();
     }
-
-    private void handleLight(float lux) {
-        txtLight.setText("Light: " + (int) lux + " lx");
-        // Night kitchen mode if too dim
-        boolean night = lux < 20f;
-        int bg = night ? Color.BLACK : Color.TRANSPARENT;
-        int fg = night ? Color.WHITE : Color.BLACK;
-
-        // Change background/foreground for quick high contrast
-        findViewById(android.R.id.content).getRootView().setBackgroundColor(bg);
-        txtLight.setTextColor(fg);
-        txtProx.setTextColor(fg);
-        txtWaves.setTextColor(fg);
-        txtShake.setTextColor(fg);
-        txtTimer.setTextColor(fg);
-        txtOrientation.setTextColor(fg);
-    }
-
-    private void handleProximity(float value, float maxRange) {
-        // "Near" typically 0.0 on most devices
-        boolean near = value < maxRange;
-        txtProx.setText(near ? "Proximity: NEAR" : "Proximity: FAR");
-
-        long now = System.currentTimeMillis();
-        // debounce 600ms to avoid multiple waves in one pass
-        if (near && now - lastWaveMs > 600) {
-            lastWaveMs = now;
-            waves++;
-            txtWaves.setText("Waves: " + waves);
-            haptic(20);
-            Snackbar.make(findViewById(android.R.id.content), "Wave detected (next step)", Snackbar.LENGTH_SHORT).show();
-            // here you could advance recipe step UI if you want
-        }
-    }
-
-    private void handleAccel(float[] v) {
-        // Low-pass gravity
-        gravity[0] = ALPHA * gravity[0] + (1 - ALPHA) * v[0];
-        gravity[1] = ALPHA * gravity[1] + (1 - ALPHA) * v[1];
-        gravity[2] = ALPHA * gravity[2] + (1 - ALPHA) * v[2];
-
-        // Linear acceleration
-        float lx = v[0] - gravity[0];
-        float ly = v[1] - gravity[1];
-        float lz = v[2] - gravity[2];
-        double mag = Math.sqrt(lx*lx + ly*ly + lz*lz);
-
-        // Orientation (rough)
-        double pitch = Math.toDegrees(Math.atan2(-v[0], Math.sqrt(v[1]*v[1] + v[2]*v[2])));
-        double roll  = Math.toDegrees(Math.atan2(v[1], v[2]));
-        String orient = Math.abs(pitch) < 25 ? "Flat" : (pitch > 0 ? "Tilt Up" : "Tilt Down");
-        txtOrientation.setText("Orientation: " + orient);
-
-        // Shake detect (debounced)
-        long now = System.currentTimeMillis();
-        if (mag > 2.2 && now - lastShakeMs > 500) { // tweak threshold if needed
-            lastShakeMs = now;
-            shakes++;
-            txtShake.setText("Shakes: " + shakes);
-            haptic(25);
-            toggleTimer();
-        }
-    }
-
-    private void toggleTimer() {
-        if (!timerRunning) {
-            startTimer();
-            Snackbar.make(findViewById(android.R.id.content), "Timer started", Snackbar.LENGTH_SHORT).show();
-        } else {
-            pauseTimer();
-            Snackbar.make(findViewById(android.R.id.content), "Timer paused", Snackbar.LENGTH_SHORT).show();
-        }
-    }
-
-    private void startTimer() {
-        timerRunning = true;
-        timer = new CountDownTimer(remainingMs, 1000) {
-            @Override public void onTick(long ms) {
-                remainingMs = ms;
-                updateTimerLabel();
-            }
-            @Override public void onFinish() {
-                timerRunning = false;
-                remainingMs = 30_000;
-                updateTimerLabel();
-                haptic(120);
-                Snackbar.make(findViewById(android.R.id.content), "Timer done!", Snackbar.LENGTH_LONG).show();
-            }
-        }.start();
-    }
-
-    private void pauseTimer() {
-        if (timer != null) timer.cancel();
-        timerRunning = false;
-        updateTimerLabel();
-    }
-
-    private void updateTimerLabel() {
-        long s = remainingMs / 1000;
-        String m = String.format("Timer: %02d:%02d (shake to start/pause)", (s/60), (s%60));
-        txtTimer.setText(m);
-    }
-
-    private void haptic(int ms) {
-        if (!switchHaptics.isChecked()) return;
-        Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-        if (v == null) return;
-        if (Build.VERSION.SDK_INT >= 26) {
-            v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
-        } else {
-            v.vibrate(ms);
-        }
-    }
-
-    @Override public void onAccuracyChanged(Sensor sensor, int accuracy) { }
 }

@@ -24,7 +24,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- Mood title updates when chip changes -->
+            <!-- Title that we update on chip / camera changes -->
             <TextView
                 android:id="@+id/txtMoodTitle"
                 android:layout_width="wrap_content"
@@ -34,6 +34,7 @@
                 android:textSize="18sp"
                 android:paddingBottom="8dp"/>
 
+            <!-- Mood meter -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -59,6 +60,7 @@
                 android:layout_height="wrap_content"
                 android:text="Energy: 0"/>
 
+            <!-- Mood chips -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -116,6 +118,54 @@
                     android:checkable="true"
                     android:text="Energetic"/>
             </com.google.android.material.chip.ChipGroup>
+
+            <!-- Camera mood detection card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="20dp"
+                app:cardUseCompatPadding="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Use camera to detect mood"/>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchCamera"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <androidx.camera.view.PreviewView
+                        android:id="@+id/previewView"
+                        android:layout_width="match_parent"
+                        android:layout_height="220dp"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone"/>
+
+                    <TextView
+                        android:id="@+id/txtCamStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Camera off"
+                        android:paddingTop="6dp"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNext"

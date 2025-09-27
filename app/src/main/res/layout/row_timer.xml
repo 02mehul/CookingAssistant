@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardUseCompatPadding="true"
+    app:cardCornerRadius="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtTimerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pasta"
+                android:textStyle="bold"
+                android:textAppearance="?attr/textAppearanceTitleMedium"/>
+
+            <TextView
+                android:id="@+id/txtTimerCountdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="09:59"
+                android:textSize="24sp"
+                android:fontFamily="sans-serif-light"/>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancelTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@android:drawable/ic_menu_close_clear_cancel"
+            style="@style/Widget.Material3.Button.IconButton"/>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

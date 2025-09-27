@@ -29,6 +29,11 @@ import com.google.android.material.snackbar.Snackbar;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import android.net.Uri;
+import com.google.android.material.snackbar.Snackbar;
+
 public class PantryFragment extends Fragment {
 
     private FragmentPantryBinding binding;
@@ -124,6 +129,16 @@ public class PantryFragment extends Fragment {
                     .show();
             return true;
         }
+        else if (id == R.id.action_export_csv) {
+            exportCsvLauncher.launch("pantry.csv");
+            return true;
+        } else if (id == R.id.action_import_csv) {
+            importCsvLauncher.launch(new String[]{"text/*","text/csv","application/csv"});
+            return true;
+        } else if (id == R.id.action_open_shopping) {
+            startActivity(new android.content.Intent(requireContext(), ShoppingListActivity.class));
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -170,6 +185,47 @@ public class PantryFragment extends Fragment {
         super.onResume();
         loadItems(); // refresh after returning from editor
     }
+
+    private void ui(Runnable r) {
+        if (isAdded()) requireActivity().runOnUiThread(r);
+    }
+    private final ActivityResultLauncher<String> exportCsvLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+                if (uri != null) {
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        try {
+                            CsvUtils.exportPantry(requireContext(), uri);
+                            requireActivity().runOnUiThread(() ->
+                                    Snackbar.make(binding.getRoot(), "Exported pantry.csv", Snackbar.LENGTH_LONG).show()
+                            );
+                        } catch (Exception e) {
+                            requireActivity().runOnUiThread(() ->
+                                    Snackbar.make(binding.getRoot(), "Export failed: " + e.getMessage(), Snackbar.LENGTH_LONG).show()
+                            );
+                        }
+                    });
+                }
+            });
+
+    private final ActivityResultLauncher<String[]> importCsvLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), (Uri uri) -> {
+                if (uri != null) {
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        try {
+                            CsvUtils.importPantry(requireContext(), uri);
+                            requireActivity().runOnUiThread(() -> {
+                                Snackbar.make(binding.getRoot(), "Imported", Snackbar.LENGTH_LONG).show();
+                                loadItems();
+                            });
+                        } catch (Exception e) {
+                            requireActivity().runOnUiThread(() ->
+                                    Snackbar.make(binding.getRoot(), "Import failed: " + e.getMessage(), Snackbar.LENGTH_LONG).show()
+                            );
+                        }
+                    });
+                }
+            });
+
 
     private void loadItems() {
         Executors.newSingleThreadExecutor().execute(() -> {

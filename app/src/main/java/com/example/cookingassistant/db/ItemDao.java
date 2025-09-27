@@ -33,6 +33,8 @@ public interface ItemDao {
     @Query("UPDATE items SET quantity = :qty WHERE id = :id")
     void updateQuantity(int id, int qty);
 
+    @Query("SELECT * FROM items WHERE LOWER(name)=LOWER(:name) LIMIT 1")
+    Item findByName(String name);
     @Delete
     void delete(Item item);
 

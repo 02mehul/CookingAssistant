@@ -4,62 +4,140 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:background="@drawable/bg_mood_gradient">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- Proper AppBar so content never sits under the toolbar -->
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="MoodMeal – Ingredients"
-        android:background="?attr/colorSurface"/>
+        android:layout_height="wrap_content"
+        android:theme="@style/ThemeOverlay.Material3.ActionBar">
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="MoodMeal – Ingredients"
+            android:background="?attr/colorSurface"/>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Content scrolls under AppBar correctly -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingTop="?attr/actionBarSize">
-
-        <TextView
-            android:id="@+id/txtInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Tell us what you have (comma separated):"
-            android:paddingBottom="6dp"/>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="e.g., rice, chicken, basil"
-            app:startIconDrawable="@android:drawable/ic_menu_edit">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editIngredients"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-        </com.google.android.material.textfield.TextInputLayout>
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
+            android:orientation="vertical"
+            android:padding="16dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp">
+            android:layout_height="wrap_content">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnMic"
-                android:layout_width="0dp"
+            <!-- Card: What do you have? -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Speak"/>
+                app:cardCornerRadius="20dp"
+                app:cardUseCompatPadding="true">
 
-            <Space android:layout_width="12dp" android:layout_height="1dp"/>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDone"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Done"/>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingBottom="8dp">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@android:drawable/ic_menu_edit"
+                            android:tint="?attr/colorPrimary"/>
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="What ingredients do you have?"
+                            android:textStyle="bold"
+                            android:textSize="16sp"
+                            android:paddingStart="8dp"/>
+                    </LinearLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="e.g., rice, chicken, basil"
+                        app:startIconDrawable="@android:drawable/ic_menu_edit"
+                        app:endIconMode="clear_text">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editIngredients"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Quick picks (wraps on small screens) -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Quick picks"
+                        android:textStyle="bold"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="4dp"/>
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipsQuick"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:singleLine="false"
+                        app:chipSpacingHorizontal="6dp"
+                        app:chipSpacingVertical="6dp"/>
+
+                    <!-- Actions -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnMic"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Speak"
+                            app:icon="@android:drawable/ic_btn_speak_now"
+                            app:iconPadding="8dp"
+                            app:iconGravity="textStart"/>
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="1dp"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDone"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Done"
+                            app:icon="@android:drawable/ic_media_play"
+                            app:iconPadding="8dp"
+                            app:iconGravity="textStart"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- roomy bottom space so it breathes above the keyboard -->
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="120dp"/>
         </LinearLayout>
-    </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
