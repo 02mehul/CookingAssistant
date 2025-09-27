@@ -22,47 +22,7 @@ Deep-linking: Snackbars jump straight to Pantry tab after actions.
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-🧭 Project structure
-
-app/
- ├─ manifests/
- │   └─ AndroidManifest.xml
- ├─ java/com/example/cookingassistant/
- │   ├─ adapters/
- │   │   └─ ItemAdapter.java           # RecyclerView adapter for pantry
- │   ├─ api/
- │   │   ├─ ApiClient.java             # Retrofit singleton
- │   │   ├─ MealApi.java               # TheMealDB endpoints
- │   │   └─ model/                     # POJOs from TheMealDB
- │   ├─ db/
- │   │   ├─ AppDatabase.java           # Room database (items + shopping_items)
- │   │   ├─ Item.java                  # @Entity table "items"
- │   │   ├─ ItemDao.java               # CRUD + queries for items
- │   │   ├─ ShoppingItem.java          # @Entity table "shopping_items"
- │   │   └─ ShoppingItemDao.java       # CRUD + queries for shopping list
- │   ├─ ui/
- │   │   ├─ MainActivity.java          # BottomNav host
- │   │   ├─ HomeFragment.java          # Dashboard + gauge + quick actions
- │   │   ├─ PantryFragment.java        # Pantry list, add/edit/delete, CSV I/O
- │   │   ├─ ItemEditActivity.java      # Editor for a single item
- │   │   ├─ RecipesFragment.java       # Search/browse recipes
- │   │   ├─ RecipeDetailActivity.java  # Image + ingredients + steps + TTS +
- │   │   │                             #  add to pantry / shopping list + YouTube
- │   │   ├─ SensorsLauncherFragment.java  # Entry to kitchen tools
- │   │   ├─ SensorsActivity.java       # Timers + accelerometer + proximity +
- │   │   │                             #  flashlight, camera permission handling
- │   │   ├─ ShoppingListActivity.java  # Check/clear shopping list
- │   │   └─ mood/
- │   │       ├─ MoodCaptureActivity.java     # mood selection (+ optional sensors/camera)
- │   │       ├─ IngredientInputActivity.java # voice/text ingredients
- │   │       ├─ MoodMatchActivity.java       # suggested recipe based on mood+pantry
- │   │       └─ MoodMeterView.java           # animated custom view
- │   └─ models/ (optional UI models if any)
- └─ res/
-     ├─ layout/ (activities, fragments, rows)
-     ├─ menu/   (bottom_nav_menu.xml, pantry_menu.xml, row menus, shopping_menu.xml)
-     ├─ drawable/ (gradients, backgrounds)
-     └─ values/ (colors.xml, strings.xml, themes/)
+<img width="532" height="681" alt="image" src="https://github.com/user-attachments/assets/02f24486-5e63-4011-8473-5a2cf378b1be" />
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------     
