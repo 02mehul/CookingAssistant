@@ -1,36 +1,87 @@
 package com.example.cookingassistant.ui;
 
 import android.content.Context;
-import android.graphics.*;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
-public class PantryGaugeView extends View {
-    private int percentage = 0;
-    private final Paint bg = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint fg = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF oval = new RectF();
+import androidx.annotation.Nullable;
 
-    public PantryGaugeView(Context c) { super(c); init(); }
-    public PantryGaugeView(Context c, AttributeSet a) { super(c, a); init(); }
+/**
+ * Ring gauge (0–100%). Call setProgress(int) to update.
+ */
+public class PantryGaugeView extends View {
+
+    private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint progressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF arc = new RectF();
+
+    private int progress = 0;         // 0..100
+    private float stroke = dp(14);    // ring thickness
+
+    // arc geometry (leave a 90° gap at top-right like the screenshots)
+    private static final float START_ANGLE = 135f; // degrees
+    private static final float SWEEP_TOTAL = 270f; // degrees
+
+    public PantryGaugeView(Context ctx) { super(ctx); init(); }
+    public PantryGaugeView(Context ctx, @Nullable AttributeSet attrs) { super(ctx, attrs); init(); }
+    public PantryGaugeView(Context ctx, @Nullable AttributeSet attrs, int defStyleAttr) { super(ctx, attrs, defStyleAttr); init(); }
 
     private void init() {
-        bg.setStyle(Paint.Style.STROKE); bg.setStrokeWidth(36f); bg.setColor(0x22000000);
-        fg.setStyle(Paint.Style.STROKE); fg.setStrokeWidth(36f);
-        fg.setStrokeCap(Paint.Cap.ROUND); fg.setColor(0xFF6750A4); // M3 primary-ish
-        text.setTextAlign(Paint.Align.CENTER); text.setTextSize(52f); text.setColor(0xFF222222);
+        track.setStyle(Paint.Style.STROKE);
+        track.setStrokeCap(Paint.Cap.ROUND);
+        track.setStrokeWidth(stroke);
+        track.setColor(0xFFDFDFDF); // light grey
+
+        progressPaint.setStyle(Paint.Style.STROKE);
+        progressPaint.setStrokeCap(Paint.Cap.ROUND);
+        progressPaint.setStrokeWidth(stroke);
+        progressPaint.setColor(0xFF7E57C2); // purple-ish; change if you like
+
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setTextSize(dp(14));
+        text.setColor(0xFF444444);
     }
 
-    public void setPercentage(int p) { percentage = Math.max(0, Math.min(100, p)); invalidate(); }
+    /** Public API used by HomeFragment */
+    public void setProgress(int value) {
+        int clamped = Math.max(0, Math.min(100, value));
+        if (clamped != this.progress) {
+            this.progress = clamped;
+            invalidate();
+        }
+    }
+
+    /** Optional accessor if you ever need it */
+    public int getProgress() { return progress; }
+
+    @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        float pad = stroke / 2f + dp(6); // keep ends visible
+        arc.set(pad, pad, w - pad, h - pad);
+    }
 
     @Override protected void onDraw(Canvas c) {
-        int w = getWidth(), h = getHeight(), size = Math.min(w, h);
-        int cx = w/2, cy = h/2, r = size/2 - 28;
-        oval.set(cx - r, cy - r, cx + r, cy + r);
-        c.drawArc(oval, 135, 270, false, bg);
-        float sweep = 270f * percentage / 100f;
-        c.drawArc(oval, 135, sweep, false, fg);
-        c.drawText(percentage + "% stocked", cx, cy + 16, text);
+        super.onDraw(c);
+
+        // Track (full arc)
+        c.drawArc(arc, START_ANGLE, SWEEP_TOTAL, false, track);
+
+        // Progress
+        float sweep = SWEEP_TOTAL * (progress / 100f);
+        c.drawArc(arc, START_ANGLE, sweep, false, progressPaint);
+
+        // Center text (optional; harmless if you show percent elsewhere)
+        // Comment these two lines out if you don't want text in the ring.
+        Paint.FontMetrics fm = text.getFontMetrics();
+        float y = getHeight() / 2f - (fm.ascent + fm.descent) / 2f;
+        c.drawText(progress + "%", getWidth() / 2f, y, text);
+    }
+
+    private float dp(float v) {
+        return v * getResources().getDisplayMetrics().density;
     }
 }

@@ -19,4 +19,8 @@ public interface MealApi {
 
     @GET("lookup.php")
     Call<MealResponse> lookup(@Query("i") String idMeal);
+
+    @GET("filter.php")
+    Call<com.example.cookingassistant.api.model.MealFilterResponse> filterByIngredient(@Query("i") String ingredient);
+
 }
